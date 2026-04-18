@@ -42,7 +42,7 @@ https://spotify-artist-id-exporter.netlify.app/callback.html
 
 ## 🌐 Live Demo
 
-https://spotify-artist-id-exporter.netlify.app/
+https://spotify-artist-id-exporter.netlify.app
 
 ---
 
