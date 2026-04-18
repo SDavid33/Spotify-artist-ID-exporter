@@ -15,7 +15,7 @@ Export your followed Spotify artists as IDs (TXT / CSV) using your own Spotify D
 
 ---
 
-## 🛠️ How to use (Tutorial is available on the Live Demo link)
+## 🛠️ How to use 
 
 1. Open the app
 2. Click the Spotify Developer Dashboard link
