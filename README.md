@@ -48,7 +48,7 @@ https://spotify-artist-id-exporter.netlify.app/
 
 ## 📸 Preview
 
-![Preview](1.png)
+![Preview](Spotify Artist ID Exporter Screenshot.jpg)
 
 ---
 
