@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spotify Artist ID Exporter</title>
+<style>
+body { font-family: Arial, sans-serif; background:#121212; color:#fff; padding:20px; margin:0; }
+button, input, select { padding:8px 10px; margin:5px; border-radius:6px; border:none; font-size:14px; }
+button { background:#1DB954; color:#fff; cursor:pointer; }
+button.secondary { background:#2a2a2a; }
+button.disconnect { background:#d83b36; }
+input[type="text"], select { background:#222; color:#fff; min-width:220px; }
+#status { margin:10px 0 8px 0; color:#ccc; white-space:pre-wrap; }
+#lastUpdated { margin:0 0 15px 0; color:#9aa0a6; font-size:12px; }
+.panel { background:#181818; border-radius:12px; padding:14px; margin:12px 0; }
+.list { display:grid; grid-template-columns:repeat(5, 1fr); gap:16px; margin-top:15px; }
+.item { background:#181818; border-radius:12px; padding:12px; text-align:center; position:relative; min-height:190px; box-sizing:border-box; }
+.item:hover { background:#242424; }
+.item.selected { outline:2px solid #1DB954; }
+.avatar { width:96px; height:96px; border-radius:50%; object-fit:cover; background:#333; display:block; margin:8px auto 10px auto; }
+.checkbox { position:absolute; top:10px; left:10px; transform:scale(1.15); }
+.favorite { position:absolute; top:8px; right:8px; padding:4px 8px; margin:0; }
+.name { font-size:14px; line-height:1.3; word-break:break-word; margin-bottom:6px; }
+.small { font-size:12px; color:#aaa; word-break:break-all; }
+.controls { margin-bottom:10px; }
+.topbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+.badge { display:inline-block; font-size:11px; padding:3px 7px; border-radius:999px; margin-top:4px; }
+.badge-new { background:rgba(29,185,84,.16); color:#1DB954; }
+.note { font-size:12px; color:#aaa; line-height:1.5; }
+.code { font-family:Consolas, monospace; background:#222; padding:2px 6px; border-radius:6px; word-break:break-all; }
+.uri-text { color:#1DB954; font-weight:bold; }
+.link-row { margin:8px 0 4px 0; }
+.link-row a { color:#1DB954; font-weight:bold; text-decoration:none; }
+.link-row a:hover { text-decoration:underline; }
+.hero { display:grid; grid-template-columns:1.05fr 1fr; gap:18px; }
+.tutorial-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:18px; margin-top:14px; }
+.step-card { background:#151515; border:1px solid #2a2a2a; border-radius:12px; padding:14px; }
+.step-card h3 { margin:0 0 10px 0; font-size:18px; }
+.step-card img { width:100%; max-height:220px; object-fit:contain; border-radius:10px; display:block; border:1px solid #2a2a2a; cursor:pointer; }
+.hidden { display:none !important; }
+.inline-note { display:inline-block; margin-left:8px; color:#9aa0a6; font-size:12px; vertical-align:middle; }
+@media (max-width: 1400px) { .list { grid-template-columns:repeat(4, 1fr); } }
+@media (max-width: 1100px) {
+  .list { grid-template-columns:repeat(3, 1fr); }
+  .hero { grid-template-columns:1fr; }
+  .tutorial-grid { grid-template-columns:repeat(2, 1fr); }
+}
+@media (max-width: 800px) { .list { grid-template-columns:repeat(2, 1fr); } }
+@media (max-width: 600px) { .tutorial-grid { grid-template-columns:1fr; } }
+@media (max-width: 520px) {
+  .list { grid-template-columns:repeat(1, 1fr); }
+  input[type="text"], select { min-width:0; width:calc(100% - 22px); }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h2 style="margin:0;">Spotify Artist ID Exporter</h2>
+</div>
+
+<div id="setupScreen">
+  <div class="panel hero">
+    <div>
+      <h3 style="margin-top:0;">Before you log in</h3>
+      <p class="note">You need your own Spotify Developer app and your own Client ID. This avoids shared app limits and lets each person use the exporter with their own Spotify setup.</p>
+      <div class="link-row">
+        <strong>Spotify Developer Dashboard:</strong><br>
+        <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer">Open Spotify Developer Dashboard</a>
+      </div>
+      <div class="link-row">
+        <strong>Redirect URI (hosted version):</strong><br>
+        <span class="code uri-text">https://spotify-artist-id-exporter.netlify.app/callback.html</span>
+      </div>
+      <div class="link-row">
+        <strong>Alternative (local use):</strong><br>
+        <span class="code uri-text">http://localhost:8080/callback.html</span>
+      </div>
+      <div class="controls" style="margin-top:12px;">
+        <input type="text" id="clientIdInput" placeholder="Paste your Spotify Client ID here">
+        <button onclick="saveClientIdAndContinue()">Save Client ID</button>
+        <span class="inline-note">Stored for 1 day only</span>
+      </div>
+      <div class="note">After you save your Client ID, this setup screen will disappear and only the normal exporter interface will be shown.</div>
+    </div>
+    <div class="step-card">
+      <h3>Quick setup</h3>
+      <ol class="note" style="margin:0 0 10px 18px; padding:0;">
+        <li>Open the Spotify Developer Dashboard.</li>
+        <li>Create a new app.</li>
+        <li>Add the hosted or local redirect URI above.</li>
+        <li>Copy the Client ID from your app page.</li>
+        <li>Paste it into this exporter and continue.</li>
+      </ol>
+      <button class="secondary" onclick="copyHostedRedirectUri()">Copy hosted Redirect URI</button>
+    </div>
+  </div>
+
+  <div class="tutorial-grid">
+    <div class="step-card">
+      <h3>Step 1 — Open the Dashboard and create your app</h3>
+      <a href="1.png" target="_blank"><img src="1.png" alt="Spotify Developer Dashboard screenshot"></a>
+    </div>
+    <div class="step-card">
+      <h3>Step 2 — Fill the app details and add the redirect URI</h3>
+      <a href="2.png" target="_blank"><img src="2.png" alt="Create app screen screenshot"></a>
+    </div>
+    <div class="step-card">
+      <h3>Step 3 — Copy the Client ID from the app page</h3>
+      <a href="3.png" target="_blank"><img src="3.png" alt="Basic information screen screenshot"></a>
+    </div>
+  </div>
+</div>
+
+<div id="appScreen" class="hidden">
+  <div class="controls">
+    <button id="authBtn" onclick="login()">Login with Spotify</button>
+    <button onclick="refreshFromSpotify()">Refresh from Spotify</button>
+    <button class="secondary" onclick="loadCacheOnly()">Load from cache</button>
+    <button class="secondary" onclick="editClientId()">Change Client ID</button>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="search" placeholder="Search..." oninput="render()">
+    <select id="sortMode" onchange="render()">
+      <option value="spotify">Spotify order</option>
+      <option value="az">Alphabetical (A → Z)</option>
+      <option value="za">Alphabetical (Z → A)</option>
+      <option value="newest">Newest seen</option>
+      <option value="oldest">Oldest seen</option>
+    </select>
+    <select id="filterMode" onchange="render()">
+      <option value="all">All</option>
+      <option value="newOnly">New since last visit</option>
+      <option value="favoritesOnly">Favorites only</option>
+    </select>
+  </div>
+
+  <div class="controls">
+    <button onclick="selectAll()">Select All</button>
+    <button onclick="clearAll()">Clear Selection</button>
+    <button onclick="copyIDs()">Copy IDs</button>
+    <button onclick="exportTXT()">TXT</button>
+    <button onclick="exportCSV()">CSV</button>
+    <button class="secondary" onclick="resetSeenData()">Reset Seen Data</button>
+  </div>
+
+  <div class="panel">
+    <div class="note">This version uses each user's own Spotify app. Your saved Client ID is stored only in your browser.</div>
+    <div id="status"></div>
+    <div id="lastUpdated"></div>
+  </div>
+
+  <div class="list" id="list"></div>
+</div>
+
+<script>
+const HOSTED_REDIRECT_URI = "https://spotify-artist-id-exporter.netlify.app/callback.html";
+const scope = "user-follow-read";
+
+const CLIENT_ID_KEY = "spotifyClientIdBYOC";
+const CLIENT_ID_TIME_KEY = "spotifyClientIdBYOC_time";
+const ARTIST_CACHE_KEY = "artistCacheBYOCv5";
+const FIRST_SEEN_KEY = "firstSeenMapBYOCv5";
+const FAVORITES_KEY = "favoriteArtistIdsBYOCv5";
+const LAST_VISIT_KEY = "lastVisitTsBYOCv5";
+const LAST_UPDATED_KEY = "lastUpdatedTsBYOCv5";
+const TOKEN_KEY = "spotifyAccessTokenBYOCv5";
+const CLIENT_ID_TTL_MS = 24 * 60 * 60 * 1000;
+
+let token = localStorage.getItem(TOKEN_KEY) || null;
+let artists = [];
+let selected = {};
+let firstSeenMap = JSON.parse(localStorage.getItem(FIRST_SEEN_KEY) || "{}");
+let favorites = JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]");
+let lastVisitTs = Number(localStorage.getItem(LAST_VISIT_KEY) || "0");
+let currentStatusMode = "idle";
+let currentStatusValue = "";
+
+function getRuntimeRedirectUri() {
+  const origin = window.location.origin;
+  if (origin && origin.startsWith("http")) return origin + "/callback.html";
+  return HOSTED_REDIRECT_URI;
+}
+
+function getClientId() {
+  const id = (localStorage.getItem(CLIENT_ID_KEY) || "").trim();
+  const ts = Number(localStorage.getItem(CLIENT_ID_TIME_KEY) || "0");
+  if (!id || !ts) return "";
+  if (Date.now() - ts > CLIENT_ID_TTL_MS) {
+    localStorage.removeItem(CLIENT_ID_KEY);
+    localStorage.removeItem(CLIENT_ID_TIME_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    return "";
+  }
+  return id;
+}
+
+function updateScreenVisibility() {
+  const hasClientId = !!getClientId();
+  document.getElementById("setupScreen").classList.toggle("hidden", hasClientId);
+  document.getElementById("appScreen").classList.toggle("hidden", !hasClientId);
+}
+
+function saveClientIdAndContinue() {
+  const value = document.getElementById("clientIdInput").value.trim();
+  if (!value) {
+    setStatus("error", "Please paste a Spotify Client ID first.");
+    return;
+  }
+  localStorage.setItem(CLIENT_ID_KEY, value);
+  localStorage.setItem(CLIENT_ID_TIME_KEY, String(Date.now()));
+  updateScreenVisibility();
+  updateAuthButton();
+  setStatus("message", "Client ID saved. You can now log in with Spotify.");
+}
+
+function editClientId() {
+  document.getElementById("clientIdInput").value = getClientId();
+  localStorage.removeItem(CLIENT_ID_KEY);
+  localStorage.removeItem(CLIENT_ID_TIME_KEY);
+  localStorage.removeItem(TOKEN_KEY);
+  token = null;
+  updateScreenVisibility();
+  updateAuthButton();
+  setStatus("message", "Client ID removed. Enter a new one to continue.");
+}
+
+function disconnect() {
+  localStorage.removeItem(TOKEN_KEY);
+  token = null;
+  updateAuthButton();
+  setStatus("message", "Disconnected from Spotify.");
+}
+
+function updateAuthButton() {
+  const btn = document.getElementById("authBtn");
+  if (!btn) return;
+  if (token) {
+    btn.textContent = "Disconnect";
+    btn.classList.add("disconnect");
+    btn.onclick = disconnect;
+  } else {
+    btn.textContent = "Login with Spotify";
+    btn.classList.remove("disconnect");
+    btn.onclick = login;
+  }
+}
+
+async function copyHostedRedirectUri() {
+  await navigator.clipboard.writeText(HOSTED_REDIRECT_URI);
+  setStatus("message", "Hosted Redirect URI copied.");
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function setStatus(mode, value = "") {
+  currentStatusMode = mode;
+  currentStatusValue = value;
+  updateStatus();
+}
+
+function updateStatus() {
+  const statusEl = document.getElementById("status");
+  if (!statusEl) return;
+  switch (currentStatusMode) {
+    case "gettingToken": statusEl.innerText = "Getting token..."; return;
+    case "loginReady": statusEl.innerText = "Login successful. Click 'Refresh from Spotify'."; return;
+    case "tokenLoaded": statusEl.innerText = "Token loaded. Click 'Refresh from Spotify'."; return;
+    case "page": statusEl.innerText = `Page: ${currentStatusValue.page || 1} | Loaded: ${currentStatusValue.total || 0}`; return;
+    case "rateLimited": statusEl.innerText = `Spotify rate limited. Waiting ${currentStatusValue || 0}s...`; return;
+    case "rateLimitedGiveUp": statusEl.innerText = "Spotify rate limit hit. Wait a few minutes, then try again."; return;
+    case "loadedCache": statusEl.innerText = `Loaded from cache: ${currentStatusValue || 0}`; return;
+    case "done": statusEl.innerText = `Done: ${currentStatusValue || 0}`; return;
+    case "error": statusEl.innerText = currentStatusValue || ""; return;
+    case "message": statusEl.innerText = currentStatusValue || ""; return;
+    default:
+      const filtered = getFilteredAndSortedArtists();
+      const selectedCount = getSelectedExportIDs().length;
+      statusEl.innerText = `Total: ${artists.length} | Filtered: ${filtered.length} | Selected: ${selectedCount}`;
+  }
+}
+
+function updateLastUpdatedText() {
+  const el = document.getElementById("lastUpdated");
+  const ts = Number(localStorage.getItem(LAST_UPDATED_KEY) || "0");
+  if (!ts) {
+    el.textContent = "";
+    return;
+  }
+  const minutes = Math.max(0, Math.floor((Date.now() - ts) / 60000));
+  if (minutes < 1) el.textContent = "Last updated: just now";
+  else if (minutes === 1) el.textContent = "Last updated: 1 minute ago";
+  else if (minutes < 60) el.textContent = `Last updated: ${minutes} minutes ago`;
+  else {
+    const hours = Math.floor(minutes / 60);
+    if (hours === 1) el.textContent = "Last updated: 1 hour ago";
+    else if (hours < 24) el.textContent = `Last updated: ${hours} hours ago`;
+    else {
+      const days = Math.floor(hours / 24);
+      el.textContent = days === 1 ? "Last updated: 1 day ago" : `Last updated: ${days} days ago`;
+    }
+  }
+}
+
+function saveFavorites() { localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites)); }
+function saveFirstSeen() { localStorage.setItem(FIRST_SEEN_KEY, JSON.stringify(firstSeenMap)); }
+
+function loadCacheOnly() {
+  const raw = localStorage.getItem(ARTIST_CACHE_KEY);
+  if (!raw) { setStatus("error", "No cache found."); return; }
+  try {
+    artists = JSON.parse(raw);
+    setStatus("loadedCache", artists.length);
+    updateLastUpdatedText();
+    render();
+  } catch (e) {
+    setStatus("error", String(e.message || e));
+  }
+}
+
+async function login() {
+  const clientId = getClientId();
+  if (!clientId) {
+    setStatus("error", "Please save your Spotify Client ID first.");
+    return;
+  }
+
+  const redirectUri = getRuntimeRedirectUri();
+  const verifierBytes = crypto.getRandomValues(new Uint8Array(64));
+  const verifier = Array.from(verifierBytes).map(x => x.toString(16).padStart(2, "0")).join("");
+  const stateBytes = crypto.getRandomValues(new Uint8Array(16));
+  const state = Array.from(stateBytes).map(x => x.toString(16).padStart(2, "0")).join("");
+
+  const challengeBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+  const challenge = btoa(String.fromCharCode(...new Uint8Array(challengeBuffer))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/,"");
+
+  sessionStorage.setItem("pkce_verifier_" + state, verifier);
+
+  const url = new URL("https://accounts.spotify.com/authorize");
+  url.searchParams.set("client_id", clientId);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("redirect_uri", redirectUri);
+  url.searchParams.set("scope", scope);
+  url.searchParams.set("code_challenge_method", "S256");
+  url.searchParams.set("code_challenge", challenge);
+  url.searchParams.set("state", state);
+
+  window.location = url.toString();
+}
+
+async function getToken(code, state) {
+  const clientId = getClientId();
+  const redirectUri = getRuntimeRedirectUri();
+  if (!clientId) throw new Error("No Client ID saved.");
+
+  const verifier = sessionStorage.getItem("pkce_verifier_" + state);
+  if (!verifier) throw new Error("Missing code verifier. Please log in again.");
+
+  const res = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: verifier
+    })
+  });
+
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch { throw new Error(`Non-JSON response from Spotify (${res.status}): ` + text.slice(0, 200)); }
+
+  if (!res.ok) throw new Error(data.error_description || data.error || "Failed to get token");
+  sessionStorage.removeItem("pkce_verifier_" + state);
+  return data;
+}
+
+async function spotifyFetchJson(url, retryCount = 0) {
+  const res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+
+  if (res.status === 429) {
+    const retry = Number(res.headers.get("Retry-After") || 5);
+    if (retryCount >= 5) {
+      setStatus("rateLimitedGiveUp");
+      throw new Error("Spotify rate limit hit. Wait a few minutes, then try again.");
+    }
+    setStatus("rateLimited", retry);
+    await sleep((retry + 1) * 1000);
+    return spotifyFetchJson(url, retryCount + 1);
+  }
+
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch { throw new Error(`Non-JSON response from Spotify (${res.status}): ` + text.slice(0, 200)); }
+
+  if (!res.ok) throw new Error(data?.error?.message || ("Spotify API error: " + res.status));
+  return data;
+}
+
+async function refreshFromSpotify() {
+  if (!token) { alert("Login first."); return; }
+
+  try {
+    let url = "https://api.spotify.com/v1/me/following?type=artist&limit=50";
+    let all = [];
+    let page = 0;
+
+    while (url) {
+      page += 1;
+      setStatus("page", { page, total: all.length });
+      const data = await spotifyFetchJson(url);
+      const items = data?.artists?.items || [];
+      all.push(...items);
+      url = data?.artists?.next || null;
+      await sleep(1200);
+    }
+
+    const previousLastVisit = Number(localStorage.getItem(LAST_VISIT_KEY) || "0");
+    const now = Date.now();
+    for (const artist of all) if (!firstSeenMap[artist.id]) firstSeenMap[artist.id] = now;
+    saveFirstSeen();
+
+    artists = all;
+    localStorage.setItem(ARTIST_CACHE_KEY, JSON.stringify(all));
+    localStorage.setItem(LAST_VISIT_KEY, String(now));
+    localStorage.setItem(LAST_UPDATED_KEY, String(now));
+    lastVisitTs = previousLastVisit;
+
+    setStatus("done", artists.length);
+    updateLastUpdatedText();
+    render();
+
+    localStorage.setItem(LAST_VISIT_KEY, String(now));
+    lastVisitTs = now;
+  } catch (e) {
+    setStatus("error", "Error: " + e.message);
+  }
+}
+
+function isNewArtist(id) {
+  const seen = firstSeenMap[id] || 0;
+  if (!seen) return false;
+  if (!lastVisitTs) return true;
+  return seen > lastVisitTs;
+}
+
+function getFilteredAndSortedArtists() {
+  const q = document.getElementById("search").value.toLowerCase().trim();
+  const sortMode = document.getElementById("sortMode").value;
+  const filterMode = document.getElementById("filterMode").value;
+
+  let result = artists.filter(a => ((a.name + " " + a.id).toLowerCase().includes(q)));
+  if (filterMode === "newOnly") result = result.filter(a => isNewArtist(a.id));
+  else if (filterMode === "favoritesOnly") result = result.filter(a => favorites.includes(a.id));
+
+  if (sortMode === "az") result = [...result].sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
+  else if (sortMode === "za") result = [...result].sort((a, b) => b.name.localeCompare(a.name, "en", { sensitivity: "base" }));
+  else if (sortMode === "newest") result = [...result].sort((a, b) => (firstSeenMap[b.id] || 0) - (firstSeenMap[a.id] || 0));
+  else if (sortMode === "oldest") result = [...result].sort((a, b) => (firstSeenMap[a.id] || 0) - (firstSeenMap[b.id] || 0));
+
+  return result;
+}
+
+function toggleArtist(id) { selected[id] = !selected[id]; render(); }
+
+function toggleFavorite(id, ev) {
+  ev.stopPropagation();
+  if (favorites.includes(id)) favorites = favorites.filter(x => x !== id);
+  else favorites.push(id);
+  saveFavorites();
+  render();
+}
+
+function render() {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  const filtered = getFilteredAndSortedArtists();
+
+  filtered.forEach(a => {
+    const div = document.createElement("div");
+    div.className = "item" + (selected[a.id] ? " selected" : "");
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "checkbox";
+    cb.checked = !!selected[a.id];
+    cb.onchange = (e) => { e.stopPropagation(); selected[a.id] = !selected[a.id]; render(); };
+
+    const favBtn = document.createElement("button");
+    favBtn.textContent = favorites.includes(a.id) ? "★" : "☆";
+    favBtn.className = "secondary favorite";
+    favBtn.onclick = (e) => toggleFavorite(a.id, e);
+
+    const img = document.createElement("img");
+    img.className = "avatar";
+    img.loading = "lazy";
+    img.src = a.images?.[1]?.url || a.images?.[0]?.url || "";
+    img.alt = a.name || a.id;
+    img.onerror = () => { img.style.visibility = "hidden"; };
+
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = a.name || a.id;
+
+    const small = document.createElement("div");
+    small.className = "small";
+    small.textContent = a.id;
+
+    div.appendChild(cb);
+    div.appendChild(favBtn);
+    div.appendChild(img);
+    div.appendChild(name);
+    div.appendChild(small);
+
+    if (isNewArtist(a.id)) {
+      const badge = document.createElement("div");
+      badge.className = "badge badge-new";
+      badge.textContent = "NEW since last visit";
+      div.appendChild(badge);
+    }
+
+    div.onclick = (e) => {
+      const tag = e.target.tagName.toLowerCase();
+      if (tag !== "input" && tag !== "button") toggleArtist(a.id);
+    };
+
+    list.appendChild(div);
+  });
+
+  setStatus("summary");
+}
+
+function getSelectedExportIDs() {
+  return artists.filter(a => selected[a.id]).map(a => a.id);
+}
+
+function selectAll() {
+  getFilteredAndSortedArtists().forEach(a => { selected[a.id] = true; });
+  render();
+}
+
+function clearAll() { selected = {}; render(); }
+
+async function copyIDs() {
+  const ids = getSelectedExportIDs().join("\n");
+  if (!ids) { alert("No artists selected."); return; }
+  await navigator.clipboard.writeText(ids);
+  alert("Copied!");
+}
+
+function exportTXT() {
+  const ids = getSelectedExportIDs();
+  if (!ids.length) { alert("No artists selected."); return; }
+  download("artist_ids.txt", ids.join("\n"), "text/plain;charset=utf-8");
+}
+
+function exportCSV() {
+  const chosen = artists.filter(a => selected[a.id]);
+  if (!chosen.length) { alert("No artists selected."); return; }
+  const rows = ["name,id"];
+  chosen.forEach(a => {
+    const safeName = '"' + String(a.name || a.id).replace(/"/g, '""') + '"';
+    rows.push(`${safeName},${a.id}`);
+  });
+  download("artists.csv", rows.join("\n"), "text/csv;charset=utf-8");
+}
+
+function download(name, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function resetSeenData() {
+  firstSeenMap = {};
+  localStorage.removeItem(LAST_VISIT_KEY);
+  lastVisitTs = 0;
+  for (const a of artists) firstSeenMap[a.id] = Date.now();
+  saveFirstSeen();
+  render();
+}
+
+(function init() {
+  document.getElementById("clientIdInput").value = getClientId();
+  updateScreenVisibility();
+  updateAuthButton();
+
+  const raw = localStorage.getItem(ARTIST_CACHE_KEY);
+  if (raw) {
+    try {
+      artists = JSON.parse(raw);
+      setStatus("loadedCache", artists.length);
+    } catch {}
+  } else if (token) {
+    setStatus("tokenLoaded");
+  } else {
+    setStatus("message", "Save your Client ID to continue.");
+  }
+  updateLastUpdatedText();
+  render();
+})();
+
+(async () => {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  const error = params.get("error");
+  const state = params.get("state");
+
+  if (error) {
+    updateScreenVisibility();
+    updateAuthButton();
+    setStatus("error", "Spotify error: " + error);
+    return;
+  }
+
+  if (code && state) {
+    try {
+      updateScreenVisibility();
+      setStatus("gettingToken");
+      const tokenData = await getToken(code, state);
+      token = tokenData.access_token;
+      localStorage.setItem(TOKEN_KEY, token);
+      history.replaceState({}, "", "/index.html");
+      updateAuthButton();
+      setStatus("loginReady");
+    } catch (e) {
+      updateAuthButton();
+      setStatus("error", "Error: " + e.message);
+    }
+  }
+})();
+</script>
+</body>
+</html>
