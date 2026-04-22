@@ -23,7 +23,8 @@ Export your followed Spotify artists as IDs (TXT / CSV) using your own Spotify D
 4. Add this Redirect URI:
 
 ```
-https://spotify-artist-id-exporter.netlify.app/callback.html
+https://spotify-artist-id-exporter.netlify.app/callback.html](https://spotify-artist-id-exporter-by-david33.netlify.app
+
 ```
 
 5. Copy your Client ID
