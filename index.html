@@ -80,7 +80,7 @@ input[type="text"], select { background:#222; color:#fff; min-width:220px; }
       <div class="controls" style="margin-top:12px;">
         <input type="text" id="clientIdInput" placeholder="Paste your Spotify Client ID here">
         <button onclick="saveClientIdAndContinue()">Save Client ID</button>
-        <span class="inline-note">Stored for 1 day only</span>
+        <span class="inline-note">Stored locally on this device</span>
       </div>
       <div class="note">After you save your Client ID, this setup screen will disappear and only the normal exporter interface will be shown.</div>
     </div>
@@ -97,20 +97,28 @@ input[type="text"], select { background:#222; color:#fff; min-width:220px; }
     </div>
   </div>
 
-  <div class="tutorial-grid">
-    <div class="step-card">
-      <h3>Step 1 — Open the Dashboard and create your app</h3>
-      <a href="1.png" target="_blank"><img src="1.png" alt="Spotify Developer Dashboard screenshot"></a>
-    </div>
-    <div class="step-card">
-      <h3>Step 2 — Fill the app details and add the redirect URI</h3>
-      <a href="2.png" target="_blank"><img src="2.png" alt="Create app screen screenshot"></a>
-    </div>
-    <div class="step-card">
-      <h3>Step 3 — Copy the Client ID from the app page</h3>
-      <a href="3.png" target="_blank"><img src="3.png" alt="Basic information screen screenshot"></a>
-    </div>
+<div class="tutorial-grid">
+  <div class="step-card">
+    <h3>Step 1 — Open the Dashboard and create your app</h3>
+    <a href="Images/1.png" target="_blank">
+      <img src="Images/1.png" alt="Spotify Developer Dashboard screenshot">
+    </a>
   </div>
+
+  <div class="step-card">
+    <h3>Step 2 — Fill the app details and add the redirect URI</h3>
+    <a href="Images/2.png" target="_blank">
+      <img src="Images/2.png" alt="Create app screen screenshot">
+    </a>
+  </div>
+
+  <div class="step-card">
+    <h3>Step 3 — Copy the Client ID from the app page</h3>
+    <a href="Images/3.png" target="_blank">
+      <img src="Images/3.png" alt="Basic information screen screenshot">
+    </a>
+  </div>
+</div>
 </div>
 
 <div id="appScreen" class="hidden">
@@ -160,14 +168,12 @@ const HOSTED_REDIRECT_URI = "https://spotify-artist-id-exporter.netlify.app/call
 const scope = "user-follow-read";
 
 const CLIENT_ID_KEY = "spotifyClientIdBYOC";
-const CLIENT_ID_TIME_KEY = "spotifyClientIdBYOC_time";
 const ARTIST_CACHE_KEY = "artistCacheBYOCv5";
 const FIRST_SEEN_KEY = "firstSeenMapBYOCv5";
 const FAVORITES_KEY = "favoriteArtistIdsBYOCv5";
 const LAST_VISIT_KEY = "lastVisitTsBYOCv5";
 const LAST_UPDATED_KEY = "lastUpdatedTsBYOCv5";
 const TOKEN_KEY = "spotifyAccessTokenBYOCv5";
-const CLIENT_ID_TTL_MS = 24 * 60 * 60 * 1000;
 
 let token = localStorage.getItem(TOKEN_KEY) || null;
 let artists = [];
@@ -185,16 +191,7 @@ function getRuntimeRedirectUri() {
 }
 
 function getClientId() {
-  const id = (localStorage.getItem(CLIENT_ID_KEY) || "").trim();
-  const ts = Number(localStorage.getItem(CLIENT_ID_TIME_KEY) || "0");
-  if (!id || !ts) return "";
-  if (Date.now() - ts > CLIENT_ID_TTL_MS) {
-    localStorage.removeItem(CLIENT_ID_KEY);
-    localStorage.removeItem(CLIENT_ID_TIME_KEY);
-    localStorage.removeItem(TOKEN_KEY);
-    return "";
-  }
-  return id;
+  return (localStorage.getItem(CLIENT_ID_KEY) || "").trim();
 }
 
 function updateScreenVisibility() {
@@ -210,7 +207,6 @@ function saveClientIdAndContinue() {
     return;
   }
   localStorage.setItem(CLIENT_ID_KEY, value);
-  localStorage.setItem(CLIENT_ID_TIME_KEY, String(Date.now()));
   updateScreenVisibility();
   updateAuthButton();
   setStatus("message", "Client ID saved. You can now log in with Spotify.");
@@ -219,7 +215,6 @@ function saveClientIdAndContinue() {
 function editClientId() {
   document.getElementById("clientIdInput").value = getClientId();
   localStorage.removeItem(CLIENT_ID_KEY);
-  localStorage.removeItem(CLIENT_ID_TIME_KEY);
   localStorage.removeItem(TOKEN_KEY);
   token = null;
   updateScreenVisibility();
