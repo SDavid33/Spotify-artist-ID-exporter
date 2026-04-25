@@ -59,3 +59,7 @@ MIT
 ---
 
 Made for personal use, but feel free to use or modify.
+
+## Sponsor
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/N4N0XO52O)
